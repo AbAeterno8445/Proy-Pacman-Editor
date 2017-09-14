@@ -65,7 +65,7 @@ public:
 	}
 };
 
-void cargar_nivel(string filename, int** matriz_nivel, int& tam_x, int& tam_y) {
+void cargar_nivel(string filename, vector<int>& matriz_nivel, int& tam_x, int& tam_y) {
 	string ruta = "mapas/" + filename;
 
 	fstream mapfile;
@@ -73,8 +73,6 @@ void cargar_nivel(string filename, int** matriz_nivel, int& tam_x, int& tam_y) {
 
 	if (mapfile.is_open()) {
 		string sub_line;
-		int i = 0, j = 0;
-
 		string tam_x_str, tam_y_str;
 		getline(mapfile, tam_x_str);
 		getline(mapfile, tam_y_str);
@@ -82,24 +80,33 @@ void cargar_nivel(string filename, int** matriz_nivel, int& tam_x, int& tam_y) {
 		tam_x = atoi(tam_x_str.c_str());
 		tam_y = atoi(tam_y_str.c_str());
 
-		matriz_nivel = new int*[tam_y];
-
-		for (int k = 0; k < tam_y; k++) {
-			matriz_nivel[k] = new int[tam_x];
-		}
-
 		while(getline(mapfile, sub_line, ',')) {
-			matriz_nivel[i][j] = atoi(sub_line.c_str());
-
-			j++;
-			if(j == tam_x) {
-				j = 0;
-				i++;
-			}
+			matriz_nivel.push_back(atoi(sub_line.c_str()));
 		}
 
 		mapfile.close();
 	}
+}
+
+void guardar_nivel(string filename, vector<int>& matriz_nivel, int tam_x, int tam_y) {
+    fstream mapfile;
+
+    string ruta = "mapas/" + filename;
+    mapfile.open(ruta, ios::out|ios::trunc);
+
+    if (mapfile.is_open()) {
+        mapfile << tam_x << endl;
+        mapfile << tam_y << endl;
+
+        for (int i = 0; i < tam_x; i++) {
+            for (int j = 0; j < tam_y; j++) {
+                mapfile << matriz_nivel[j + i * tam_y] << ",";
+            }
+            mapfile << endl;
+        }
+
+        mapfile.close();
+    }
 }
 
 int main()
@@ -127,17 +134,19 @@ int main()
     textures.push_back(ghosts_texture);
 
     // Nivel
-    int** matriz_nivel; // Matriz
+    string nombre_nivel = "mapa1.txt";
+
+    vector<int> matriz_nivel; // Matriz
 
     // Offset dibujado del nivel
-    int niv_draw_xoff = 0;
-    int niv_draw_yoff = 128;
+    int niv_draw_xoff = 352;
+    int niv_draw_yoff = 0;
 
     // Tamaño nivel
     int nivel_tam_x = 0;
     int nivel_tam_y = 0;
 
-    cargar_nivel("mapa1.txt", matriz_nivel, nivel_tam_x, nivel_tam_y);
+    cargar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
 
     // Bloques (paleta)
     vector<Bloque> bloques_paleta;
@@ -150,14 +159,14 @@ int main()
 		for (int j = 0; j < nivel_tam_y; j++) {
 			Bloque bloque_temp(&window, &textures);
 
-			switch(matriz_nivel[i][j]) {
+			switch(matriz_nivel[i + j * nivel_tam_x]) {
 			case 69: // Pacman
 				bloque_temp.set_textureid(1);
-				bloque_temp.set_spriteid(0);
+				bloque_temp.set_spriteid(11);
 				break;
 
 			default:
-				bloque_temp.set_spriteid(matriz_nivel[i][j]);
+				bloque_temp.set_spriteid(matriz_nivel[i + j * nivel_tam_x]);
 				break;
 			}
 
@@ -198,18 +207,41 @@ int main()
             if (event.type == sf::Event::Closed)
                 window.close();
 
+            if (event.type == sf::Event::KeyPressed) {
+                switch(event.key.code) {
+                case sf::Keyboard::S:
+                    guardar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
+                    break;
+
+                default: break;
+                }
+            }
+
 			if (event.type == sf::Event::MouseButtonPressed) {
 				if (event.mouseButton.button == sf::Mouse::Left) {
 					int mouse_x = event.mouseButton.x - 16;
 					int mouse_y = event.mouseButton.y - 16;
 
-					for (unsigned int i = 0; i < bloques_paleta.size(); i++) {
-						if (bloques_paleta[i].clicked(mouse_x, mouse_y)) {
-							bloque_selec = i;
+					if (mouse_x < 356) {
+                        for (unsigned int i = 0; i < bloques_paleta.size(); i++) {
+                            if (bloques_paleta[i].clicked(mouse_x, mouse_y)) {
+                                bloque_selec = i;
 
-							selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
-							break;
-						}
+                                selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
+                                break;
+                            }
+                        }
+					} else {
+                        for (unsigned int i = 0; i < bloques_nivel.size(); i++) {
+                            if (bloques_nivel[i].clicked(mouse_x, mouse_y)) {
+                                bloques_nivel[i].set_spriteid(bloques_paleta[bloque_selec].get_spriteid());
+
+                                int xx = (bloques_nivel[i].get_drawx() % 32) / 32;
+                                int yy = (bloques_nivel[i].get_drawy() % 32) / 32;
+                                matriz_nivel[xx + yy * nivel_tam_x] = bloques_paleta[bloque_selec].get_spriteid();
+                                break;
+                            }
+                        }
 					}
 				}
 			}
