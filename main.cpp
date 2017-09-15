@@ -199,6 +199,8 @@ int main()
 		}
     }
 
+    int mouse_x, mouse_y;
+
     while (window.isOpen())
     {
         sf::Event event;
@@ -217,34 +219,32 @@ int main()
                 }
             }
 
-			if (event.type == sf::Event::MouseButtonPressed) {
-				if (event.mouseButton.button == sf::Mouse::Left) {
-					int mouse_x = event.mouseButton.x - 16;
-					int mouse_y = event.mouseButton.y - 16;
+            mouse_x = event.mouseButton.x - 16;
+            mouse_y = event.mouseButton.y - 16;
 
-					if (mouse_x < 356) {
-                        for (unsigned int i = 0; i < bloques_paleta.size(); i++) {
-                            if (bloques_paleta[i].clicked(mouse_x, mouse_y)) {
-                                bloque_selec = i;
+            if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+                if (mouse_x < 340) {
+                    for (unsigned int i = 0; i < bloques_paleta.size(); i++) {
+                        if (bloques_paleta[i].clicked(mouse_x, mouse_y)) {
+                            bloque_selec = i;
 
-                                selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
-                                break;
-                            }
+                            selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
+                            break;
                         }
-					} else {
-                        for (unsigned int i = 0; i < bloques_nivel.size(); i++) {
-                            if (bloques_nivel[i].clicked(mouse_x, mouse_y)) {
-                                bloques_nivel[i].set_spriteid(bloques_paleta[bloque_selec].get_spriteid());
+                    }
+                } else {
+                    for (unsigned int i = 0; i < bloques_nivel.size(); i++) {
+                        if (bloques_nivel[i].clicked(mouse_x, mouse_y)) {
+                            bloques_nivel[i].set_spriteid(bloques_paleta[bloque_selec].get_spriteid());
 
-                                int xx = (bloques_nivel[i].get_drawx() % 32) / 32;
-                                int yy = (bloques_nivel[i].get_drawy() % 32) / 32;
-                                matriz_nivel[xx + yy * nivel_tam_x] = bloques_paleta[bloque_selec].get_spriteid();
-                                break;
-                            }
+                            int xx = ((bloques_nivel[i].get_drawx() - niv_draw_xoff) / 32) % 32;
+                            int yy = ((bloques_nivel[i].get_drawy() - niv_draw_yoff) / 32) % 32;
+                            matriz_nivel[xx + yy * nivel_tam_x] = bloques_paleta[bloque_selec].get_spriteid();
+                            break;
                         }
-					}
-				}
-			}
+                    }
+                }
+            }
         }
 
         window.clear();
