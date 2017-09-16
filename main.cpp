@@ -6,7 +6,7 @@
 using namespace std;
 
 class Bloque {
-	vector<sf::Texture>* texture;
+	sf::Texture* texture;
 	sf::Sprite sprite;
 
 	sf::RenderWindow* window;
@@ -18,11 +18,11 @@ class Bloque {
 
 public:
 	//Constructor
-	Bloque(sf::RenderWindow* window_param, vector<sf::Texture>* texture_param) {
+	Bloque(sf::RenderWindow* window_param, sf::Texture* texture_param) {
 		window = window_param;
 
 		texture = texture_param;
-		sprite.setTexture((*texture)[0]);
+		sprite.setTexture(*texture);
 
 		sprite_id = 0;
 
@@ -41,7 +41,7 @@ public:
 	}
 
 	void set_textureid(int id) {
-		sprite.setTexture((*texture)[id]);
+		sprite.setTexture(*texture);
 	}
 
 	void set_drawposition(int dx, int dy) {
@@ -66,7 +66,7 @@ public:
 };
 
 void cargar_nivel(string filename, vector<int>& matriz_nivel, int& tam_x, int& tam_y) {
-	string ruta = "mapas/" + filename;
+	string ruta = "mapas/" + filename + ".txt";
 
 	fstream mapfile;
 	mapfile.open(ruta);
@@ -91,7 +91,7 @@ void cargar_nivel(string filename, vector<int>& matriz_nivel, int& tam_x, int& t
 void guardar_nivel(string filename, vector<int>& matriz_nivel, int tam_x, int tam_y) {
     fstream mapfile;
 
-    string ruta = "mapas/" + filename;
+    string ruta = "mapas/" + filename + ".txt";
     mapfile.open(ruta, ios::out|ios::trunc);
 
     if (mapfile.is_open()) {
@@ -115,32 +115,18 @@ int main()
     sf::RenderWindow window(sf::VideoMode(1280, 720), "PACMAN Editor");
     window.setFramerateLimit(60);
 
-    // Texturas
-    vector<sf::Texture> textures;
-
-    // Textura paredes
-    sf::Texture walls_texture;
-    walls_texture.loadFromFile("assets/walls.png");
-    textures.push_back(walls_texture);
-
-    // Textura personajes
-    sf::Texture charset_texture;
-    charset_texture.loadFromFile("assets/charset.png");
-    textures.push_back(charset_texture);
-
-    // Textura fantasmas
-    sf::Texture ghosts_texture;
-    ghosts_texture.loadFromFile("assets/charset_fantasmas.png");
-    textures.push_back(ghosts_texture);
+    // Textura imagenes
+    sf::Texture texture;
+    texture.loadFromFile("assets/texture.png");
 
     // Nivel
-    string nombre_nivel = "mapa1.txt";
+    string nombre_nivel = "mapa1";
 
     vector<int> matriz_nivel; // Matriz
 
     // Offset dibujado del nivel
     int niv_draw_xoff = 352;
-    int niv_draw_yoff = 0;
+    int niv_draw_yoff = 1;
 
     // Tamaño nivel
     int nivel_tam_x = 0;
@@ -151,13 +137,14 @@ int main()
     // Bloques (paleta)
     vector<Bloque> bloques_paleta;
     int bloque_selec = 0;
+    int bloque_selec_2 = 0;
 
     // Bloques (nivel)
     vector<Bloque> bloques_nivel;
 
     for (int i = 0; i < nivel_tam_x; i++) {
 		for (int j = 0; j < nivel_tam_y; j++) {
-			Bloque bloque_temp(&window, &textures);
+			Bloque bloque_temp(&window, &texture);
 
 			switch(matriz_nivel[i + j * nivel_tam_x]) {
 			case 69: // Pacman
@@ -176,13 +163,26 @@ int main()
 		}
     }
 
-    // Rectangulo de seleccion
+    // Rectangulo de seleccion primario
     sf::RectangleShape selec_rect;
     selec_rect.setSize(sf::Vector2f(32, 32));
     selec_rect.setFillColor(sf::Color::Transparent);
     selec_rect.setOutlineColor(sf::Color::Yellow);
     selec_rect.setOutlineThickness(1);
 
+    // Rectangulo de seleccion secundario
+    sf::RectangleShape selec_rect_2 = selec_rect;
+    selec_rect_2.setOutlineColor(sf::Color::Cyan);
+
+    // Rectangulo borde nivel
+    sf::RectangleShape level_outline_rect;
+    level_outline_rect.setSize(sf::Vector2f(nivel_tam_x * 32, nivel_tam_y * 32));
+    level_outline_rect.setFillColor(sf::Color::Transparent);
+    level_outline_rect.setOutlineColor(sf::Color::White);
+    level_outline_rect.setOutlineThickness(1);
+    level_outline_rect.setPosition(sf::Vector2f(niv_draw_xoff, niv_draw_yoff));
+
+    // Inicializacion de la paleta de bloques
     for (int i = 0; i < 3; i++) {
 		for (int j = 0; j < 10; j++) {
 
@@ -190,7 +190,7 @@ int main()
 				if (j >= 8) continue;
 			}
 
-			Bloque bloque_temp(&window, &textures);
+			Bloque bloque_temp(&window, &texture);
 
 			bloque_temp.set_drawposition(j * 32, i * 32);
 			bloque_temp.set_spriteid(j + i * 10);
@@ -198,48 +198,177 @@ int main()
 			bloques_paleta.push_back(bloque_temp);
 		}
     }
+    // Bloques especiales para paleta
+    // Posicion inicial del pacman
+    Bloque* bloque_temp = new Bloque(&window, &texture);
+    bloque_temp->set_drawposition(0, 96);
+    bloque_temp->set_spriteid(30);
+    bloques_paleta.push_back(*bloque_temp);
+    delete bloque_temp;
 
+    // Info mouse
     int mouse_x, mouse_y;
+    bool mouse_held = false;
+    bool mouse_held_2 = false;
+
+    // Texto guardado de nivel
+    sf::Font font;
+    font.loadFromFile("assets/fonts/monobit.ttf");
+
+    sf::Text text_savelvl;
+    text_savelvl.setFont(font);
+    text_savelvl.setCharacterSize(48);
+    text_savelvl.setFillColor(sf::Color::White);
+    text_savelvl.setPosition(sf::Vector2f(12, window.getSize().y - 68));
+
+    // Escribiendo
+    bool inputting = false;
+    bool input_start = false; // Necesario para evitar escribir letra extra en el nombre del nivel
+
+    int input_state = 0; // 0 -> Guardado de nivel / 1 -> Cargado de nivel
 
     while (window.isOpen())
     {
         sf::Event event;
         while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
-                window.close();
+        	switch(event.type) {
 
-            if (event.type == sf::Event::KeyPressed) {
+			// Evento -> Cerrar ventana
+			case sf::Event::Closed:
+                window.close();
+				break;
+
+			// Evento -> Apreto una tecla
+            case sf::Event::KeyPressed:
                 switch(event.key.code) {
+				// S -> Guardar nivel
                 case sf::Keyboard::S:
-                    guardar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
+                	if (!inputting) {
+						inputting = true;
+						input_state = 0;
+                	}
                     break;
+
+				// L -> Cargar nivel
+				case sf::Keyboard::L:
+					if (!inputting) {
+						inputting = true;
+						input_state = 1;
+					}
+					break;
+
+				// N -> Nuevo nivel
+				case sf::Keyboard::N:
+					if (!inputting) {
+						for (int i = 0; i < nivel_tam_x; i++) {
+							for (int j = 0; j < nivel_tam_y; j++) {
+								matriz_nivel[i + j * nivel_tam_x] = 11;
+								bloques_nivel[i + j * nivel_tam_x].set_spriteid(matriz_nivel[i + j * nivel_tam_x]);
+							}
+						}
+					}
+					break;
+
+				// Enter -> Dejar de escribir
+				case sf::Keyboard::Return:
+					if (inputting) {
+						inputting = false;
+						input_start = false;
+
+						if (input_state == 0) { // Guardar nivel
+							guardar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
+						}
+						else if (input_state == 1) { // Cargar nivel
+							cargar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
+						}
+					}
+					break;
 
                 default: break;
                 }
-            }
+				break;
 
-            mouse_x = event.mouseButton.x - 16;
-            mouse_y = event.mouseButton.y - 16;
+            // Evento -> Escribir texto
+			case sf::Event::TextEntered:
+				if (inputting) {
+					if (input_start) {
+						// Solo caracteres ASCII
+						if (event.text.unicode < 128) {
+							if (event.text.unicode == 8) { // Borrar
+								if (nombre_nivel.size() > 0) nombre_nivel.resize(nombre_nivel.size() - 1);
+							} else if (event.text.unicode != 13 && nombre_nivel.size() < 16) {
+							nombre_nivel += static_cast<char>(event.text.unicode);
+							}
+						}
+					} else {
+						input_start = true;
+					}
+				}
+				break;
 
-            if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+            // Evento -> Movio el mouse
+            case sf::Event::MouseMoved:
+				if (window.hasFocus()) {
+					mouse_x = event.mouseMove.x - 16;
+					mouse_y = event.mouseMove.y - 16;
+				}
+				break;
+
+            // Evento -> Click del mouse
+            case sf::Event::MouseButtonPressed:
+				if (event.mouseButton.button == sf::Mouse::Left) {
+					mouse_held = true;
+				}
+				else if (event.mouseButton.button == sf::Mouse::Right) {
+					mouse_held_2 = true;
+				}
+				break;
+
+            // Evento -> Soltar click del mouse
+            case sf::Event::MouseButtonReleased:
+				if (event.mouseButton.button == sf::Mouse::Left) {
+					mouse_held = false;
+				}
+
+				if (event.mouseButton.button == sf::Mouse::Right) {
+					mouse_held_2 = false;
+				}
+				break;
+
+            default: break;
+        	}
+
+            // Seleccion / Cambio de bloques
+            if (mouse_held || mouse_held_2) {
                 if (mouse_x < 340) {
                     for (unsigned int i = 0; i < bloques_paleta.size(); i++) {
                         if (bloques_paleta[i].clicked(mouse_x, mouse_y)) {
-                            bloque_selec = i;
-
-                            selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
+							if (mouse_held) { // Click Izquierdo - Cambiar seleccion primaria
+								bloque_selec = i;
+								selec_rect.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
+							}
+							else if (mouse_held_2) { // Click Derecho - Cambiar seleccion secundaria
+								bloque_selec_2 = i;
+								selec_rect_2.setPosition(bloques_paleta[i].get_drawx(), bloques_paleta[i].get_drawy());
+							}
                             break;
                         }
                     }
                 } else {
                     for (unsigned int i = 0; i < bloques_nivel.size(); i++) {
                         if (bloques_nivel[i].clicked(mouse_x, mouse_y)) {
-                            bloques_nivel[i].set_spriteid(bloques_paleta[bloque_selec].get_spriteid());
+							int selec = 0;
+
+							if (mouse_held) selec = bloque_selec;
+							else if (mouse_held_2) selec = bloque_selec_2;
+
+                            bloques_nivel[i].set_spriteid(bloques_paleta[selec].get_spriteid());
 
                             int xx = ((bloques_nivel[i].get_drawx() - niv_draw_xoff) / 32) % 32;
                             int yy = ((bloques_nivel[i].get_drawy() - niv_draw_yoff) / 32) % 32;
-                            matriz_nivel[xx + yy * nivel_tam_x] = bloques_paleta[bloque_selec].get_spriteid();
+
+							matriz_nivel[xx + yy * nivel_tam_x] = bloques_paleta[selec].get_spriteid();
                             break;
                         }
                     }
@@ -257,7 +386,17 @@ int main()
 			bloques_nivel[i].dibujar();
 		}
 
+		window.draw(selec_rect_2);
 		window.draw(selec_rect);
+		window.draw(level_outline_rect);
+
+		text_savelvl.setString("Nivel: " + nombre_nivel);
+		if (inputting) {
+			text_savelvl.setFillColor((input_state == 0 ? sf::Color::Green : sf::Color::Cyan));
+		} else {
+			text_savelvl.setFillColor(sf::Color::White);
+		}
+		window.draw(text_savelvl);
 
         window.display();
     }
