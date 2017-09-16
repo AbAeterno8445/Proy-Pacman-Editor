@@ -40,10 +40,6 @@ public:
 		sprite.setTextureRect(sf::IntRect(sf::IntRect(32 * (sprite_id % 10), 32 * floor(sprite_id / 10), 32, 32)));
 	}
 
-	void set_textureid(int id) {
-		sprite.setTexture(*texture);
-	}
-
 	void set_drawposition(int dx, int dy) {
 		draw_x = dx;
 		draw_y = dy;
@@ -72,6 +68,8 @@ void cargar_nivel(string filename, vector<int>& matriz_nivel, int& tam_x, int& t
 	mapfile.open(ruta);
 
 	if (mapfile.is_open()) {
+		matriz_nivel.clear();
+
 		string sub_line;
 		string tam_x_str, tam_y_str;
 		getline(mapfile, tam_x_str);
@@ -98,9 +96,9 @@ void guardar_nivel(string filename, vector<int>& matriz_nivel, int tam_x, int ta
         mapfile << tam_x << endl;
         mapfile << tam_y << endl;
 
-        for (int i = 0; i < tam_x; i++) {
-            for (int j = 0; j < tam_y; j++) {
-                mapfile << matriz_nivel[j + i * tam_y] << ",";
+        for (int i = 0; i < tam_y; i++) {
+            for (int j = 0; j < tam_x; j++) {
+                mapfile << matriz_nivel[j + i * tam_x] << ",";
             }
             mapfile << endl;
         }
@@ -120,7 +118,7 @@ int main()
     texture.loadFromFile("assets/texture.png");
 
     // Nivel
-    string nombre_nivel = "mapa1";
+    string nombre_nivel = "nivel_1";
 
     vector<int> matriz_nivel; // Matriz
 
@@ -146,16 +144,7 @@ int main()
 		for (int j = 0; j < nivel_tam_y; j++) {
 			Bloque bloque_temp(&window, &texture);
 
-			switch(matriz_nivel[i + j * nivel_tam_x]) {
-			case 69: // Pacman
-				bloque_temp.set_textureid(1);
-				bloque_temp.set_spriteid(11);
-				break;
-
-			default:
-				bloque_temp.set_spriteid(matriz_nivel[i + j * nivel_tam_x]);
-				break;
-			}
+			bloque_temp.set_spriteid(matriz_nivel[i + j * nivel_tam_x]);
 
 			bloque_temp.set_drawposition(i * 32 + niv_draw_xoff, j * 32 + niv_draw_yoff);
 
@@ -183,11 +172,14 @@ int main()
     level_outline_rect.setPosition(sf::Vector2f(niv_draw_xoff, niv_draw_yoff));
 
     // Inicializacion de la paleta de bloques
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 10; j++) {
 
 			if (i == 1) {
 				if (j >= 8) continue;
+			}
+			else if (i == 3) {
+				if (j >= 5) continue;
 			}
 
 			Bloque bloque_temp(&window, &texture);
@@ -198,13 +190,6 @@ int main()
 			bloques_paleta.push_back(bloque_temp);
 		}
     }
-    // Bloques especiales para paleta
-    // Posicion inicial del pacman
-    Bloque* bloque_temp = new Bloque(&window, &texture);
-    bloque_temp->set_drawposition(0, 96);
-    bloque_temp->set_spriteid(30);
-    bloques_paleta.push_back(*bloque_temp);
-    delete bloque_temp;
 
     // Info mouse
     int mouse_x, mouse_y;
@@ -281,6 +266,21 @@ int main()
 						}
 						else if (input_state == 1) { // Cargar nivel
 							cargar_nivel(nombre_nivel, matriz_nivel, nivel_tam_x, nivel_tam_y);
+
+							level_outline_rect.setSize(sf::Vector2f(nivel_tam_x * 32, nivel_tam_y * 32));
+
+							bloques_nivel.clear();
+							for (int i = 0; i < nivel_tam_x; i++) {
+								for (int j = 0; j < nivel_tam_y; j++) {
+									Bloque bloque_temp(&window, &texture);
+
+									bloque_temp.set_spriteid(matriz_nivel[i + j * nivel_tam_x]);
+
+									bloque_temp.set_drawposition(i * 32 + niv_draw_xoff, j * 32 + niv_draw_yoff);
+
+									bloques_nivel.push_back(bloque_temp);
+								}
+							}
 						}
 					}
 					break;
