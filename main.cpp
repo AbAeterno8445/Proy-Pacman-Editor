@@ -176,7 +176,7 @@ int main()
 		for (int j = 0; j < 10; j++) {
 
 			if (i == 1) {
-				if (j >= 8) continue;
+				if (j >= 9) continue;
 			}
 			else if (i == 3) {
 				if (j >= 5) continue;
