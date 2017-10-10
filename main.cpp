@@ -175,10 +175,7 @@ int main()
     for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 10; j++) {
 
-			if (i == 1) {
-				if (j >= 9) continue;
-			}
-			else if (i == 3) {
+			if (i == 3) {
 				if (j >= 5) continue;
 			}
 
